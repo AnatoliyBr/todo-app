@@ -3,15 +3,15 @@
 ## Структура проекта
 ```
 ├── cmd
-|    ├── app
+|   ├── app
 |
 ├── configs
 ├── internal
-|    ├── app
-|    ├── controller
-|    ├── entity
-|    ├── store
-|    ├── usecase
+|   ├── app
+|   ├── controller
+|   ├── entity
+|   ├── store
+|   ├── usecase
 |
 ├── migrations
 ├── .env
@@ -25,6 +25,11 @@
 ## ER-диаграммы
 
 <p align="center">
-    <img src="/assets/er_schema.png" width="800">
+    <img src="/assets/images/er_schema.png" width="800">
 </p>
 
+## Техническая статья
+
+### [Мой опыт создания TODO REST API сервера](/todo_paper.md)
+
+`todo_paper` - файл со статьей

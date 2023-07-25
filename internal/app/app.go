@@ -5,7 +5,9 @@ import (
 	"log"
 
 	"github.com/AnatoliyBr/todo-app/internal/controller/apiserver"
+	"github.com/AnatoliyBr/todo-app/internal/store"
 	"github.com/BurntSushi/toml"
+	"github.com/joho/godotenv"
 )
 
 var configPath string
@@ -16,15 +18,25 @@ func init() {
 
 func Run() {
 
-	// Controller
-	flag.Parse()
-	c := apiserver.NewConfig()
-	_, err := toml.DecodeFile(configPath, c)
+	// PostgreSQL
+	if err := godotenv.Load(); err != nil {
+		log.Fatal(err)
+	}
+	configDB := store.NewConfig()
+	_, err := store.NewDB(configDB)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s := apiserver.NewServer(c)
+	// Controller
+	flag.Parse()
+	configServer := apiserver.NewConfig()
+	_, err = toml.DecodeFile(configPath, configServer)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s := apiserver.NewServer(configServer)
 	if err := s.StartServer(); err != nil {
 		log.Fatal(err)
 	}

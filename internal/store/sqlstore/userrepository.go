@@ -17,7 +17,16 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) Create(u *entity.User) error {
-	return r.db.QueryRow("INSERT INTO users (email, encrypted_password) VALUES ($1, $2) RETURNING user_id",
+	if err := u.Validate(); err != nil {
+		return err
+	}
+
+	if err := u.BeforeCreate(); err != nil {
+		return err
+	}
+
+	return r.db.QueryRow(
+		"INSERT INTO users (email, encrypted_password) VALUES ($1, $2) RETURNING user_id",
 		u.Email,
 		u.EncryptedPassword,
 	).Scan(&u.UserID)

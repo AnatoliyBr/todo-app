@@ -22,7 +22,7 @@
 ├── go.sum
 ```
 
-## ER-диаграммы
+## Схема базы данных
 
 <p align="center">
     <img src="/assets/images/er_schema.png" width="800">

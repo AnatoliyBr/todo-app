@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/AnatoliyBr/todo-app/internal/entity"
+	"github.com/AnatoliyBr/todo-app/internal/store"
 )
 
 type UserRepository struct {
@@ -33,9 +34,37 @@ func (r *UserRepository) Create(u *entity.User) error {
 }
 
 func (r *UserRepository) FindByID(id int) (*entity.User, error) {
-	return nil, nil
+	u := &entity.User{}
+	if err := r.db.QueryRow(
+		"SELECT user_id, email, encrypted_password FROM users WHERE user_id = $1",
+		id,
+	).Scan(
+		&u.UserID,
+		&u.Email,
+		&u.EncryptedPassword,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, store.ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return u, nil
 }
 
 func (r *UserRepository) FindByEmail(email string) (*entity.User, error) {
-	return nil, nil
+	u := &entity.User{}
+	if err := r.db.QueryRow(
+		"SELECT user_id, email, encrypted_password FROM users WHERE email = $1",
+		email,
+	).Scan(
+		&u.UserID,
+		&u.Email,
+		&u.EncryptedPassword,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, store.ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return u, nil
 }

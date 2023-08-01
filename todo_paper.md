@@ -12,7 +12,7 @@
 * [Реализация sqlstore](#реализация-sqlstore)
 * [Тестирование репозиториев в пакете sqlstore](#тестирование-репозиториев-в-пакете-sqlstore)
 * [Валидация модели пользователя и хэширование пароля](#валидация-модели-пользователя-и-хэширование-пароля)
-* [Реализация teststore](#реализация-teststore)
+* [Реализация и тестирование teststore](#реализация-и-тестирование-teststore)
 * [Полезные ссылки](#полезные-ссылки)
 
 ## Подготовка репозитория
@@ -423,7 +423,7 @@ migrate -path migrations -database "postgres://localhost/todo_dev?sslmode=disabl
 ## Реализации интерфейсов хранилища (Store) и репозиториев
 В директории `internal/store` создал две директории `sqlstore` и `teststore` - это две реализации интерфейсов.
 
-`sqlstore` будет непосредственно взаимодействовать с БД, а `teststore` - реализация тестового хранилища (mock).
+`sqlstore` будет непосредственно взаимодействовать с БД, а `teststore` - реализация тестового хранилища (**mock**).
 
 Запросы непосредственно к БД нужны для тестов SQL-запросов внутри пакета `sqlstore`.
 
@@ -434,9 +434,9 @@ migrate -path migrations -database "postgres://localhost/todo_dev?sslmode=disabl
 ## Реализация sqlstore
 Итак, в директории `internal/store/sqlstore` создал файлы `userrepository.go` и `store.go`.
 
-В файле `userrepository.go` определяем структуру - реализацию интерфейса `UserRepository` с полем типа `*sql.DB`, конструктором `NewUserRepository` и соответствующими методами.
+В файле `userrepository.go` определяем структуру - реализацию интерфейса `UserRepository` с **приватным полем** типа `*sql.DB`, конструктором `NewUserRepository` и соответствующими методами.
 
-В файле `store.go` определяем структуру - реализацию интерфейса `Store` с **приватным полем** типа `*UserRepository`, конструктором `NewStore` и методом `User`, который возвращает интерфейс `UserRepository`.
+В файле `store.go` определяем структуру - реализацию интерфейса `Store` с **приватным полем** типа `sqlstore.*UserRepository`, конструктором `NewStore` и методом `User`, который возвращает интерфейс `UserRepository`.
 
 <details>
     <summary> Замечания по реализации методов Create, FindByID, FindByEmail</summary>
@@ -602,7 +602,20 @@ func TestStruct_Func(t *testing.T) {
 
 Запустил еще раз тест `TestUserRepository_Create`, чтобы убедиться, что все работает.
 
-## Реализация teststore
+## Реализация и тестирование teststore
+Создал еще одну реализацию хранилища, которая будет использовать в тестах других пакетов.
+
+Итак, создал директорию `internal/store/teststore` с файлами `store.go` и `userrepository.go`.
+
+В файле `userrepository.go` определил структуру - реализацию интерфейса `UserRepository` с **приватным полем** `users` типа `map[int]*entity.User`, конструктором `NewUserRepository` и соответствующими методами. В методах `FindByID` и `FindByEmail`, если пользователь не найден, возвращал **кастомную ошибку** `store.ErrRecordNotFound`.
+
+В файле `store.go` определил структуру `Store` с **приватным полем** типа `teststore.*UserRepository`, конструктором `NewStore` и методом `User`, который возвращает интерфейс `UserRepository`.
+
+Также создал файл `userrepository_test.go` с тестами методов репозитория `UserRepository`.
+
+Таким образом, реализация `teststore` в отличие от `sqlstore` вместо объекта `*sql.DB` для подключения к БД содержит `map`'у - **in-memory** хранилище пользователей, где ключом является `UserID`, а значением структура пользователя.
+
+Тесты репозиториев аналогичны тестам в `sqlstore`.
 
 ## Полезные ссылки
 * [REST API на Golang](https://www.youtube.com/playlist?list=PLehOyJfJkFkJ5m37b4oWh783yzVlHdnUH)

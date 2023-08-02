@@ -5,18 +5,21 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/AnatoliyBr/todo-app/internal/usecase"
 	"github.com/gorilla/mux"
 )
 
 type server struct {
 	config *Config
 	router *mux.Router
+	uc     usecase.UseCase
 }
 
-func NewServer(config *Config) *server {
+func NewServer(config *Config, uc usecase.UseCase) *server {
 	s := &server{
-		router: mux.NewRouter(),
 		config: config,
+		router: mux.NewRouter(),
+		uc:     uc,
 	}
 
 	s.configureRouter()
@@ -30,7 +33,7 @@ func (s *server) configureRouter() {
 
 func (s *server) StartServer() error {
 	log.Println("start server...")
-	return http.ListenAndServe(s.config.BindAddr, s.router)
+	return http.ListenAndServe(s.config.BindAddr, s)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

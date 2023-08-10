@@ -66,4 +66,8 @@ DELETE /tasks/{id} - удаление задачи из списка
 
 ### [Мой опыт создания REST API сервера для ведения todo-списков](/todo_paper.md)
 
+<p align="center">
+  <img src="/assets/images/todo_paper_cover.png" width="800">
+</p>
+
 `todo_paper.md` - файл со статьей

@@ -20,6 +20,8 @@
 * [Регистрация пользователя](#регистрация-пользователя)
 * [Принцип Stateless](#принцип-stateless)
 * [Стандарт JSON Web Token (JWT)](#стандарт-json-web-token-jwt)
+* [Endpoint для аутентификации пользователя и выдачи JWT](#endpoint-для-аутентификации-пользователя-и-выдачи-jwt)
+* [Middleware-компонент для аутентификации пользователя по JWT](#middleware-компонент-для-аутентификации-пользователя-по-jwt)
 * [Полезные ссылки](#полезные-ссылки)
 
 ## Подготовка репозитория
@@ -126,7 +128,7 @@ func (s *server) handleHello() http.HandlerFunc {
 }
 ```
 
-Замечу, что в качестве обработчика удобно использовать не привычную функцию с сигнатурой (`func(w http.ResponseWriter, r *http.Request`), а функцию, возвращающую функцию типа `http.HandlerFunc`.
+Замечу, что в качестве обработчика удобно использовать не привычную функцию с сигнатурой (`func(w http.ResponseWriter, r *http.Request)`), а функцию, возвращающую функцию типа `http.HandlerFunc`.
 
 Идея в том, что перед `return` можно определить локальные специфичные типы, которые будут использоваться только в этом обработчике, например, структуру, описывающую формат запроса.
 
@@ -725,7 +727,7 @@ func TestStruct_Func(t *testing.T) {
 **Публичные endpoint'ы**, доступные всем:
 ```
 POST /users - регистрация пользователя
-POST /tokens - аутентификация пользователя с помощью JWT
+POST /tokens - аутентификация пользователя и выдача JWT
 ```
 
 **Приватные endpoint'ы**, доступные только аутентифицированным пользователям:
@@ -748,11 +750,11 @@ DELETE /tasks/{id} - удаление задачи из списка
 ## Регистрация пользователя
 В директории `internal/controller/apiserver` в файле `apiserver.go` определил endpoint для регистрации пользователя - метод `handleUsersCreate`, который будет создавать пользователя в БД.
 
-Как уже отмечалось при создании тестового обработчика `handleHello`, удобно использовать не привычную функцию с сигнатурой (`func(w http.ResponseWriter, r *http.Request`), а функцию, возвращающую функцию типа `http.HandlerFunc`.
+Как уже отмечалось при создании тестового обработчика `handleHello`, удобно использовать не привычную функцию с сигнатурой (`func(w http.ResponseWriter, r *http.Request)`), а функцию, возвращающую функцию типа `http.HandlerFunc`.
 
 В методе `handleUsersCreate` перед `return` определил структуру запроса `request`, в ней описал поля, которые ожидаются от пользователя во время регистрации. Сразу прописал `json` тэги для сериализации.
 
-Далее в теле возвращаемой функции, которая используется для каждого запроса, определил указатель на структуру `request`, которую попытался заполнить информацией, декодированной из payload'а запроса. Для **декодирования JSON-данных** использовал библиотеку **json** (связка функции `NewDecoder` и метода `Decode`).
+Далее в теле возвращаемой функции, которая используется для каждого запроса, создал указатель на структуру `request`, которую попытался заполнить информацией, декодированной из payload'а запроса. Для **декодирования JSON-данных** использовал библиотеку **json** (связка функции `NewDecoder` и метода `Decode`).
 
 Определил два приватных хэлпер-метода `error` и `respond`.
 
@@ -776,13 +778,15 @@ DELETE /tasks/{id} - удаление задачи из списка
 
 [Источник](https://habr.com/ru/articles/739808/)
 
-Таблица. Использованные статус-коды из библиотеки http
+Таблица. Использованные статус-коды из библиотеки net/http
 | Статус-код | Описание |
 | ---------- | -------- |
 | StatusBadRequest | 400 |
+| StatusUnauthorized | 401 |
 | StatusUnprocessableEntity | 422 |
 | StatusCreated | 201 |
 | StatusOK | 200 |
+| StatusInternalServerError | 500 |
 
 [Источник](https://habr.com/ru/companies/piter/articles/511382/)
 </details>
@@ -812,7 +816,7 @@ DELETE /tasks/{id} - удаление задачи из списка
 Невалидный:
 
 ```bash
-curl -X POST http://localhost:8080/users -d "{\"email\":\"invalid\"}
+curl -X POST http://localhost:8080/users -d "{\"email\":\"invalid\"}"
 ```
 
 Валидный:
@@ -1082,18 +1086,75 @@ base64UrlEncode(header) + '.' + base64UrlEncode(payload) + '.' + base64UrlEncode
 [Источник](https://www.youtube.com/watch?v=w8ENQfaYIT8)
 </details>
 
-## Аутентификация пользователя через JWT
-Библиотека https://github.com/golang-jwt/jwt
+## Endpoint для аутентификации пользователя и выдачи JWT
+В директории `internal/controller/apiserver` в файле `apiserver.go` определил endpoint для аутентификации пользователя - метод `handleTokensCreate`, который будет **проверять логин и пароль** и, если они верны, **генерировать JWT-токен** для пользователя.
 
-Создание токена: NewWithClaims + SingedString
-Передача токена: http.Cookie
-Валидация токена: ParseWithClaims
+Для работы с JWT использовал библиотеку `golang-jwt/jwt`:
 
-[Creating a New JWT](https://golang-jwt.github.io/jwt/usage/create/)
-[Parsing and Validating a JWT](https://golang-jwt.github.io/jwt/usage/parse/)
-[Signing Methods](https://golang-jwt.github.io/jwt/usage/signing_methods/)
+```bash
+go get github.com/golang-jwt/jwt/v5
+```
 
-https://dev.to/omnisyle/simple-jwt-authentication-for-golang-part-1-3kfo
+Снова обработчик `handleTokensCreate` - это не привычная функция с сигнатурой (`func(w http.ResponseWriter, r *http.Request)`), а функция, возвращающая функцию типа `http.HandlerFunc`.
+
+По аналогии с обработчиком регистрации в методе `handleTokensCreate` перед `return` определил структуру запроса `request`. В ней описал поля, которые ожидаются от пользователя во время аутентификации. Сразу прописал `json` тэги для сериализации.
+
+Кроме того, для записи поля `UserID` в payload JWT определил структуру `tokenClaims` с полем `UserID` типа `int` и анонимным полем типа `jwt.RegisteredClaims`.
+
+Структура типа `jwt.RegisteredClaims` содержит зарезервированные поля, в частности **время жизни токена** `ExpiresAt`.
+
+По аналогии с обработчиком регистрации в теле возвращаемой функции создал указатель на структуру `request`, которую попытался заполнить информацией, декодированной из payload'а запроса (связка функции `NewDecoder` и метода `Decode`из библиотеки **json**). В случае ошибки декодирования запроса, вызывал метод `error` со статус-кодом `http.StatusBadRequest`.
+
+Далее попытался найти пользователя в БД по `Email` (вызвал `usecase` `UsersFindByEmail`) и проверил, что пароль соответствует зашифрованному в БД (вызвал метод пользователя `ComparePassword`).
+
+В директории `internal/entity` в файле `user.go` определил **вспомогательный метод** `ComparePassword` для сравнения паролей, в котором вызвал функцию `bcrypt.CompareHashAndPassword`.
+
+В случае ошибки вызывал метод `error` со статус-кодом `401` (`http.StatusUnauthorized`) и `return`. При этом создал **абстрактную ошибку** `errIncorrectEmailOrPassword`, чтобы не передавать информацию о том, что пользователь не найден (например, чтобы злоумышленники не начали брутфорсить email). А именно в этом же файле `server.go` определил кастомную ошибку с помощью функции `errors.New`.
+
+Если пользователь аутентифицировался, необходимо выдать ему токен, поэтому далее создал структуру `claims` типа `tokenClaims` с полями `UserID` и `ExpiresAt`.
+
+Для установки срока действия токена в 5 мин `ExpiresAt` использовал функцию `jwt.NewNumericDate` и библиотеку `time` (связка функции `Now`, метода `Add`).
+
+Затем **создал токен** с помощью функции `jwt.NewWithClaims`, в которую передал метод подписи `jwt.SigningMethodHS256` (это симметричный метод `HMAC SHA256`) и структуру `claims`.
+
+Далее **подписал токен** с помощью метода `SignedString`, в который передал секретный ключ.
+
+Так как использовал алгоритм хэширования `SHA256`, то секретный ключ должен быть длиной минимум **32 символа** (`32 * 8 бит = 256 бит`). Для генерации использовал [Encryption key generator](https://generate-random.org/encryption-key-generator?count=1&bytes=32&cipher=aes-256-cbc&string=&password=).
+
+Для передачи секрета использовал **переменные окружения**, в частности добавил новое поле `SecretKey` в конфиг сервера, а в конструкторе `NewConfig` использовал функцию `os.Getenv`, чтобы извлечь переменную окружения по ключу `SECRET_KEY`.
+
+Замечу, что при использовании `HMAC` алгоритма секрет [требуется](https://golang-jwt.github.io/jwt/usage/signing_methods/#signing-vs-encryption) передать в формате `[]byte`.
+
+Если при подписи токена возникла ошибка, возвращал статус-код `500` (`http.StatusInternalServerError`).
+
+Чтобы **передать токен** в заголовке `Set-Cookie`, использовал функцию `http.SetCookie`, в которую передал `w` и `http.Cookie`.
+
+В конце вызывал хэлпер `respond` со статус-кодом `200` (`http.StatusOK`).
+
+Также в методе `configureRouter` с помощью метода `HandleFunc` у поля `s.router` зарегистрировал endpoint `handleTokensCreate` на обработку POST запросов на маршрут `/tokens`.
+
+В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleTokensCreate`. При этом, срез анонимных структур `testCases` содержит те же поля, как и в тесте регистрации.
+
+После сборки проекта отправил несколько тестовых запросов с помощью утилиты `curl`.
+
+Невалидные:
+
+```bash
+curl -X POST http://localhost:8080/tokens -d "{\"\"}"
+curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"invalid\"}"
+```
+
+Валидный:
+
+```bash
+curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}"
+```
+
+Замечу, что на Windows требуется экранировать кавычки (`" "`) слэшами (`\" \"`).
+
+Чтобы **полностью** показать запрос и ответ, использовал флаг `-v` (`--verbose`) - подробный вывод.
+
+## Middleware-компонент для аутентификации пользователя по JWT
 
 ## Полезные ссылки
 * [REST API на Golang](https://www.youtube.com/playlist?list=PLehOyJfJkFkJ5m37b4oWh783yzVlHdnUH)

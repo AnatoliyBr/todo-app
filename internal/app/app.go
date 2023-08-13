@@ -6,7 +6,7 @@ import (
 
 	"github.com/AnatoliyBr/todo-app/internal/controller/apiserver"
 	"github.com/AnatoliyBr/todo-app/internal/store"
-	"github.com/AnatoliyBr/todo-app/internal/store/sqlstore"
+	"github.com/AnatoliyBr/todo-app/internal/store/sqlrepository"
 	"github.com/AnatoliyBr/todo-app/internal/usecase"
 	"github.com/BurntSushi/toml"
 	"github.com/joho/godotenv"
@@ -31,8 +31,11 @@ func Run() {
 	}
 	defer db.Close()
 
+	// Repository
+	ur := sqlrepository.NewUserRepository(db)
+
 	// Store
-	store := sqlstore.NewStore(db)
+	store := store.NewAppStore(ur)
 
 	// UseCase
 	uc := usecase.NewAppUseCase(store)

@@ -5,13 +5,14 @@ import (
 
 	"github.com/AnatoliyBr/todo-app/internal/entity"
 	"github.com/AnatoliyBr/todo-app/internal/store"
-	"github.com/AnatoliyBr/todo-app/internal/store/teststore"
+	"github.com/AnatoliyBr/todo-app/internal/store/testrepository"
 	"github.com/AnatoliyBr/todo-app/internal/usecase"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAppUseCase_UsersCreate(t *testing.T) {
-	s := teststore.NewStore()
+	ur := testrepository.NewUserRepository()
+	s := store.NewAppStore(ur)
 	u := entity.TestUser(t)
 	uc := usecase.NewAppUseCase(s)
 
@@ -20,7 +21,8 @@ func TestAppUseCase_UsersCreate(t *testing.T) {
 }
 
 func TestAppUseCase_UsersFindByID(t *testing.T) {
-	s := teststore.NewStore()
+	ur := testrepository.NewUserRepository()
+	s := store.NewAppStore(ur)
 	uc := usecase.NewAppUseCase(s)
 	u1 := entity.TestUser(t)
 	_, err := uc.UsersFindByID(u1.UserID)
@@ -33,7 +35,8 @@ func TestAppUseCase_UsersFindByID(t *testing.T) {
 }
 
 func TestAppUseCase_UsersFindByEmail(t *testing.T) {
-	s := teststore.NewStore()
+	ur := testrepository.NewUserRepository()
+	s := store.NewAppStore(ur)
 	uc := usecase.NewAppUseCase(s)
 	u1 := entity.TestUser(t)
 	_, err := uc.UsersFindByEmail(u1.Email)

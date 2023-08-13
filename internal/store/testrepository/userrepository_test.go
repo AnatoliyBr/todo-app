@@ -1,16 +1,17 @@
-package teststore_test
+package testrepository_test
 
 import (
 	"testing"
 
 	"github.com/AnatoliyBr/todo-app/internal/entity"
 	"github.com/AnatoliyBr/todo-app/internal/store"
-	"github.com/AnatoliyBr/todo-app/internal/store/teststore"
+	"github.com/AnatoliyBr/todo-app/internal/store/testrepository"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUserRepository_Create(t *testing.T) {
-	s := teststore.NewStore()
+	ur := testrepository.NewUserRepository()
+	s := store.NewAppStore(ur)
 	u := entity.TestUser(t)
 
 	assert.NotNil(t, u)
@@ -18,7 +19,8 @@ func TestUserRepository_Create(t *testing.T) {
 }
 
 func TestUserRepository_FindByID(t *testing.T) {
-	s := teststore.NewStore()
+	ur := testrepository.NewUserRepository()
+	s := store.NewAppStore(ur)
 	u1 := entity.TestUser(t)
 	_, err := s.User().FindByID(u1.UserID)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
@@ -30,7 +32,8 @@ func TestUserRepository_FindByID(t *testing.T) {
 }
 
 func TestUserRepository_FindByEmail(t *testing.T) {
-	s := teststore.NewStore()
+	ur := testrepository.NewUserRepository()
+	s := store.NewAppStore(ur)
 	u1 := entity.TestUser(t)
 	_, err := s.User().FindByEmail(u1.Email)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())

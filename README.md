@@ -37,6 +37,10 @@ DELETE /tasks/{id} - удаление задачи из списка
 
 ## Архитектура
 
+<p align="center">
+    <img src="/assets/images/architecture.png" width="800">
+</p>
+
 ## Структура проекта
 ```
 ├── cmd

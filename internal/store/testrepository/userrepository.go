@@ -1,4 +1,4 @@
-package teststore
+package testrepository
 
 import (
 	"github.com/AnatoliyBr/todo-app/internal/entity"

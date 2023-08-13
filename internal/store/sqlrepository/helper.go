@@ -1,4 +1,4 @@
-package sqlstore
+package sqlrepository
 
 import (
 	"database/sql"
@@ -28,5 +28,4 @@ func TestDB(t *testing.T, databaseURL string) (*sql.DB, func(...string)) {
 
 		db.Close()
 	}
-
 }

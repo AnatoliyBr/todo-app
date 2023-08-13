@@ -8,13 +8,15 @@ import (
 	"testing"
 
 	"github.com/AnatoliyBr/todo-app/internal/entity"
-	"github.com/AnatoliyBr/todo-app/internal/store/teststore"
+	"github.com/AnatoliyBr/todo-app/internal/store"
+	"github.com/AnatoliyBr/todo-app/internal/store/testrepository"
 	"github.com/AnatoliyBr/todo-app/internal/usecase"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestServer_HandleHello(t *testing.T) {
-	uc := usecase.NewAppUseCase(teststore.NewStore())
+	ur := testrepository.NewUserRepository()
+	uc := usecase.NewAppUseCase(store.NewAppStore(ur))
 	s := NewServer(NewConfig(), uc)
 	rec := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/hello", nil)
@@ -24,7 +26,8 @@ func TestServer_HandleHello(t *testing.T) {
 }
 
 func TestServer_HandleUsersCreate(t *testing.T) {
-	uc := usecase.NewAppUseCase(teststore.NewStore())
+	ur := testrepository.NewUserRepository()
+	uc := usecase.NewAppUseCase(store.NewAppStore(ur))
 	s := NewServer(NewConfig(), uc)
 
 	testCases := []struct {
@@ -68,7 +71,8 @@ func TestServer_HandleUsersCreate(t *testing.T) {
 
 func TestServer_HandleTokensCreate(t *testing.T) {
 	u := entity.TestUser(t)
-	uc := usecase.NewAppUseCase(teststore.NewStore())
+	ur := testrepository.NewUserRepository()
+	uc := usecase.NewAppUseCase(store.NewAppStore(ur))
 	s := NewServer(NewConfig(), uc)
 	s.uc.UsersCreate(u)
 

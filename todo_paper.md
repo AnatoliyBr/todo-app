@@ -736,6 +736,8 @@ POST /tokens - аутентификация пользователя и выда
 
 **Приватные endpoint'ы**, доступные только аутентифицированным пользователям:
 ```
+GET /profile - просмотр профиля пользователя
+
 GET /lists - просмотр всех списков
 
 POST /lists - создание списка
@@ -1113,7 +1115,7 @@ go get github.com/golang-jwt/jwt/v5
 
 В директории `internal/entity` в файле `user.go` определил **вспомогательный метод** `ComparePassword` для сравнения паролей, в котором вызвал функцию `bcrypt.CompareHashAndPassword`.
 
-В случае ошибки вызывал метод `error` со статус-кодом `401` (`http.StatusUnauthorized`) и `return`. При этом создал **абстрактную ошибку** `errIncorrectEmailOrPassword`, чтобы не передавать информацию о том, что пользователь не найден (например, чтобы злоумышленники не начали брутфорсить email). А именно в этом же файле `server.go` определил кастомную ошибку с помощью функции `errors.New`.
+В случае ошибки вызывал метод `error` со статус-кодом `401` (`http.StatusUnauthorized`) и `return`. При этом создал **абстрактную ошибку** `errIncorrectEmailOrPassword`, чтобы не передавать информацию о том, что пользователь не найден (например, чтобы злоумышленники не начали брутфорсить email). А именно в этом же файле `apiserver.go` определил кастомную ошибку с помощью функции `errors.New`.
 
 Если пользователь аутентифицировался, необходимо выдать ему токен, поэтому далее создал структуру `claims` типа `tokenClaims` с полями `UserID` и `ExpiresAt`.
 
@@ -1135,7 +1137,7 @@ go get github.com/golang-jwt/jwt/v5
 
 В конце вызывал хэлпер `respond` со статус-кодом `200` (`http.StatusOK`).
 
-Также в методе `configureRouter` с помощью метода `HandleFunc` у поля `s.router` зарегистрировал endpoint `handleTokensCreate` на обработку POST запросов на маршрут `/tokens`.
+Также в методе `configureRouter` с помощью метода `HandleFunc` у поля `s.router` зарегистрировал endpoint `handleTokensCreate` на обработку `POST` запросов на маршрут `/tokens`.
 
 В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleTokensCreate`. При этом, срез анонимных структур `testCases` содержит те же поля, как и в тесте регистрации.
 
@@ -1208,6 +1210,91 @@ curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \
     * Например, есть HTTP-сервер, на этапе middleware можно записывать `UserID`, который получаем из токена/сессии, в `context.Context`, чтобы в конечных обработчиках каждый раз не парсить токен/сессию, а **брать это значение из контекста**.
 
 ## Middleware-компонент для проверки аутентификации пользователя по JWT
+Endpoint'ы для работы с todo-списками и отдельными задачами являются приватными. Необходимо закрыть публичный доступ к этим ресурсам и разрешить обращения только аутентифицированным пользователям.
+
+Для этого создал middleware-компонент, который валидирует JWT-токен, пытается найти пользователя в БД по полю `UserID` из payload JWT. И в случае успеха, добавляет **структуру пользователя** в **контекст текущего запроса**, иначе возвращает статус-код `401` (`http.StatusUnauthorized`).
+
+В директории `internal/controller/apiserver` в файле `apiserver.go` определил middleware-функцию `authenticateUser`, которая принимает следующий обработчик в цепочке типа `http.Handler` и возвращает тоже `http.Handler`.
+
+Точнее возвращает:
+
+```go
+return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+    // ...
+})
+```
+
+Перед `return` определил структуру `tokenClaims` с полем `UserID` типа `int` и анонимным полем типа `jwt.RegisteredClaims`.
+
+В теле анонимной функции из поля `Header` запроса попытался прочитать заголовок `Authorization` с токеном. Помним, что клиент согласно **RFC 6750** посылает токен в формате `Authorization: Bearer токен`, поэтому распарсил содержимое заголовка с помощью функции `strings.Split` и сделал соответствующие проверки.
+
+В случае ошибки, вызывал метод `error` со статус-кодом `http.StatusBadRequest` и `return`. При этом передавал кастомную ошибку `errIncorrectAuthHeader`, которую определил в том же файле `apiserver.go` с помощью функции `errors.New`. Далее записал строку с токеном в переменную `tokenString`.
+
+Для **парсинга** и **валидации** токена использовал функцию `jwt.ParseWithClaims`, в которую передал `tokenString`, кастомный payload `tokenClaims` и callback-функцию с сигнатурой (`func(token *jwt.Token) (interface{}, error)`), в которой согласно [документации](https://pkg.go.dev/github.com/golang-jwt/jwt/v5) проверил поле `alg` в JWT-header (т.к. метод `HMAC`) и возвратил секретный ключ для проверки токена.
+
+В случае ошибки вызывал метод `error` со статус-кодом `http.StatusUnauthorized` и `return`. В качестве ошибки можно передавать ту, которую возвращает функция `jwt.ParseWithClaims` (типа `ErrTokenSignatureInvalid`, `ErrTokenExpired`, `ErrTokenInvalidClaims` и т.д.), но я передавал абстрактную `errNotAuthenticated`, которую определил в файле `apiserver.go` с помощью функции `errors.New`.
+
+Записал поля payload токена в переменную `claims`. Для преобразования типа интерфейса `jwt.Claims` в `*tokenClaims` использовал запись `value.typeName`.
+
+Далее попытался найти пользователя в БД по `UserID` (вызвал `usecase` `UsersFindByID`). В случае ошибки вызывал метод `error` со статус-кодом `http.StatusUnauthorized` и `return`.
+
+Если все корректно, вызывал **следующий обработчик** `next` с помощью метода `ServeHTTP`.
+
+Чтобы **добавить структуру пользователя в контекст текущего запроса**, использовал метод `WithContext`, который заменяет текущий контекст на новый.
+
+Для создания нового контекста использовал функцию `context.WithValue`, в которую передал **родительский контекст** (в частности, контекст текущего запроса возвращает метод `Context`), **ключ**, в котором хранится структура пользователя, и **структуру пользователя**.
+
+Для ключей контекста в файле `apiserver.go` определил **отдельный** тип данных `ctxKey` типа `uint8` (чем больше значение, тем больше ключей), поскольку использовать какие-то стандартные типы данных (например, строки) не является хорошей практикой. И создал константу `ctxKeyUser` этого типа, которая является ключом пользователя в этом контексте.
+
+В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_AuthenticateUser`.
+
+<details>
+    <summary> Замечания по реализации модульного теста middleware TestServer_AuthenticateUser</summary>
+
+Срез анонимных структур `testCases` содержит поле названия sub-теста (`name`) и дополнительные поля:
+* `tokenString` - функция, которая возвращает подписанный токен.
+* `expectedCode` - `int`.
+
+Middleware-компонент принимает `http.Handler`, поэтому создал **фейковый обработчик**, который записывает в ответ статус-код `http.StatusOK`:
+
+```go
+handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+})
+```
+
+В sub-тестах рассмотрел 4 случая:
+1. Пользователь аутентифицирован
+2. Неправильный формат заголовка
+3. Пользователь неаутентифицирован
+4. Срок действия токена истек
+
+Чтобы установить заголовок `Authorization` использовал метод `Set` поля `Header` структуры запроса `req`.
+</details>
+
+Для тестирования middleware для проверки аутентификации пользователя по JWT токену создал приватный endpoint для просмотра профиля пользователя.
+
+Итак, в файле `apiserver.go` определил метод `handleUserProfile`, который возвращает статус-код `http.StatusOK` и **структуру пользователя из контекста запроса** (связка метода `Context` и `Value` с ключом `ctxKeyUser`).
+
+Также в методе `configureRouter` с помощью метода `Handle` у поля `s.router` зарегистрировал middleware `authenticateUser` с endpointo'ом `handleUserProfile` (`s.authenticateUser(s.handleUserProfile())`) на обработку `GET` запросов на маршрут `/profile`.
+
+В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleUserProfile`, в котором использовал ту же конструкцию, что и в middleware обработчике, для записи структуры пользователя в контекст запроса - `req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))`, а для вызова обработчика - `s.handleUserProfile().ServeHTTP(rec, req)`. Проверил, что статус-код `http.StatusOK` и что тело ответа `rec` не пустое, с помощью функций `assert.Equal` и `assert.NotNil`, соответственно.
+
+После сборки проекта отправил несколько тестовых запросов с помощью утилиты `curl`:
+
+Невалидный:
+
+```bash
+curl -X GET http://localhost:8080/profile -H "Authorization: Bearer " -v
+```
+
+Кроме того, отправлял запросы **после истечения срока действия токена** и **с измененным JWT payload**.
+
+Валидный:
+
+```bash
+curl -X GET http://localhost:8080/profile -H "Authorization: Bearer токен" -v
+```
 
 ## Middleware-компоненты для CORS, RequestID и логирования
 

@@ -2,15 +2,19 @@ package apiserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/AnatoliyBr/todo-app/internal/entity"
 	"github.com/AnatoliyBr/todo-app/internal/store"
 	"github.com/AnatoliyBr/todo-app/internal/store/testrepository"
 	"github.com/AnatoliyBr/todo-app/internal/usecase"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,6 +29,88 @@ func TestServer_HandleHello(t *testing.T) {
 	assert.Equal(t, "hello", rec.Body.String())
 }
 
+func TestServer_AuthenticateUser(t *testing.T) {
+	type tokenClaims struct {
+		UserID int `json:"user_id"`
+		jwt.RegisteredClaims
+	}
+
+	ur := testrepository.NewUserRepository()
+	store := store.NewAppStore(ur)
+	uc := usecase.NewAppUseCase(store)
+	s := NewServer(NewConfig(), uc)
+	u := entity.TestUser(t)
+	s.uc.UsersCreate(u)
+
+	testCases := []struct {
+		name         string
+		tokenString  func() string
+		expectedCode int
+	}{
+		{
+			name: "authenticated",
+			tokenString: func() string {
+				claims := &tokenClaims{
+					UserID: u.UserID,
+					RegisteredClaims: jwt.RegisteredClaims{
+						ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 5)),
+					},
+				}
+				token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+				tokenString, _ := token.SignedString([]byte(s.config.SecretKey))
+				return tokenString
+			},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name: "incorrect auth header",
+			tokenString: func() string {
+				return ""
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "not authenticated",
+			tokenString: func() string {
+				claims := &tokenClaims{}
+				token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+				tokenString, _ := token.SignedString([]byte(s.config.SecretKey))
+				return tokenString
+			},
+			expectedCode: http.StatusUnauthorized,
+		},
+		{
+			name: "expired token",
+			tokenString: func() string {
+				claims := &tokenClaims{
+					UserID: u.UserID,
+					RegisteredClaims: jwt.RegisteredClaims{
+						ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Minute * 5)),
+					},
+				}
+				token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+				tokenString, _ := token.SignedString([]byte(s.config.SecretKey))
+				return tokenString
+			},
+			expectedCode: http.StatusUnauthorized,
+		},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tc.tokenString()))
+
+			s.authenticateUser(handler).ServeHTTP(rec, req)
+			assert.Equal(t, tc.expectedCode, rec.Code)
+		})
+	}
+}
 func TestServer_HandleUsersCreate(t *testing.T) {
 	ur := testrepository.NewUserRepository()
 	uc := usecase.NewAppUseCase(store.NewAppStore(ur))
@@ -122,4 +208,20 @@ func TestServer_HandleTokensCreate(t *testing.T) {
 			assert.Equal(t, tc.expectedCode, rec.Code)
 		})
 	}
+}
+
+func TestServer_HandleUserProfile(t *testing.T) {
+	u := entity.TestUser(t)
+	ur := testrepository.NewUserRepository()
+	store := store.NewAppStore(ur)
+	uc := usecase.NewAppUseCase(store)
+	s := NewServer(NewConfig(), uc)
+	s.uc.UsersCreate(u)
+
+	rec := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/profile", nil)
+	req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
+	s.handleUserProfile().ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.NotNil(t, rec.Body)
 }

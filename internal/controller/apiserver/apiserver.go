@@ -1,11 +1,13 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/AnatoliyBr/todo-app/internal/entity"
@@ -14,9 +16,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	ctxKeyUser ctxKey = iota
+)
+
 var (
 	errIncorrectEmailOrPassword = errors.New("incorrect email or password")
+	errIncorrectAuthHeader      = errors.New("incorrect auth header")
+	errNotAuthenticated         = errors.New("not authenticated")
 )
+
+type ctxKey uint8
 
 type server struct {
 	config *Config
@@ -41,6 +51,8 @@ func (s *server) configureRouter() {
 
 	s.router.HandleFunc("/users", s.handleUsersCreate()).Methods(http.MethodPost)
 	s.router.HandleFunc("/tokens", s.handleTokensCreate()).Methods(http.MethodPost)
+
+	s.router.Handle("/profile", s.authenticateUser(s.handleUserProfile())).Methods(http.MethodGet)
 }
 
 func (s *server) StartServer() error {
@@ -55,6 +67,60 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleHello() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "hello")
+	}
+}
+
+func (s *server) authenticateUser(next http.Handler) http.Handler {
+	type tokenClaims struct {
+		UserID int `json:"user_id"`
+		jwt.RegisteredClaims
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader, ok := r.Header["Authorization"]
+		if !ok {
+			s.error(w, r, http.StatusBadRequest, errIncorrectAuthHeader)
+			return
+		}
+
+		authHeaderParts := strings.Split(authHeader[0], " ")
+		if len(authHeaderParts) != 2 || authHeaderParts[0] != "Bearer" || authHeaderParts[1] == "" {
+			s.error(w, r, http.StatusBadRequest, errIncorrectAuthHeader)
+			return
+		}
+
+		tokenString := authHeaderParts[1]
+
+		token, err := jwt.ParseWithClaims(
+			tokenString,
+			&tokenClaims{},
+			func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, errors.New("incorrect signing method")
+				}
+				return []byte(s.config.SecretKey), nil
+			})
+
+		if err != nil {
+			s.error(w, r, http.StatusUnauthorized, errNotAuthenticated)
+			return
+		}
+
+		claims := token.Claims.(*tokenClaims)
+
+		u, err := s.uc.UsersFindByID(claims.UserID)
+		if err != nil {
+			s.error(w, r, http.StatusUnauthorized, errNotAuthenticated)
+			return
+		}
+
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKeyUser, u)))
+	})
+}
+
+func (s *server) handleUserProfile() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s.respond(w, r, http.StatusOK, r.Context().Value(ctxKeyUser))
 	}
 }
 
@@ -118,8 +184,8 @@ func (s *server) handleTokensCreate() http.HandlerFunc {
 			},
 		}
 
-		t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		st, err := t.SignedString([]byte(s.config.SecretKey))
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, err := token.SignedString([]byte(s.config.SecretKey))
 		if err != nil {
 			s.error(w, r, http.StatusInternalServerError, err)
 			return
@@ -128,7 +194,7 @@ func (s *server) handleTokensCreate() http.HandlerFunc {
 		http.SetCookie(w,
 			&http.Cookie{
 				Name:  "token",
-				Value: st,
+				Value: tokenString,
 			})
 
 		s.respond(w, r, http.StatusOK, nil)

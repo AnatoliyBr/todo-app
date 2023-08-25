@@ -24,7 +24,9 @@
 * [Endpoint для аутентификации пользователя и выдачи JWT](#endpoint-для-аутентификации-пользователя-и-выдачи-jwt)
 * [Middleware-компоненты. Пакет context](#middleware-компоненты-пакет-context)
 * [Middleware-компонент для проверки аутентификации пользователя по JWT](#middleware-компонент-для-проверки-аутентификации-пользователя-по-jwt)
-* [Middleware-компоненты для CORS, RequestID и логирования](#middleware-компоненты-для-cors-requestid-и-логирования)
+* [Middleware-компонент для CORS](#middleware-компонент-для-cors)
+* [Middleware-компонент для RequestID](#middleware-компонент-для-requestid)
+* [Middleware-компонент для логирования](#middleware-компонент-для-логирования)
 * [Полезные ссылки](#полезные-ссылки)
 
 ## Подготовка репозитория
@@ -803,7 +805,7 @@ DELETE /tasks/{id} - удаление задачи из списка
 
 Также в методе `configureRouter` с помощью метода `HandleFunc` у поля `s.router` зарегистрировал endpoint `handleUsersCreate` на обработку `POST` запросов на маршрут `/users`.
 
-В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleUsersCreate`.
+В заключение добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleUsersCreate`.
 
 <details>
     <summary> Замечания по реализации модульного теста метода handleUsersCreate</summary>
@@ -1139,7 +1141,7 @@ go get github.com/golang-jwt/jwt/v5
 
 Также в методе `configureRouter` с помощью метода `HandleFunc` у поля `s.router` зарегистрировал endpoint `handleTokensCreate` на обработку `POST` запросов на маршрут `/tokens`.
 
-В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleTokensCreate`. При этом, срез анонимных структур `testCases` содержит те же поля, как и в тесте регистрации.
+В заключение добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleTokensCreate`. При этом, срез анонимных структур `testCases` содержит те же поля, как и в тесте регистрации.
 
 После сборки проекта отправил несколько тестовых запросов с помощью утилиты `curl`.
 
@@ -1153,7 +1155,7 @@ curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \
 Валидный:
 
 ```bash
-curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}"
+curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
 ```
 
 Замечу, что на Windows требуется экранировать кавычки (`" "`) слэшами (`\" \"`).
@@ -1246,7 +1248,7 @@ return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 
 Для ключей контекста в файле `apiserver.go` определил **отдельный** тип данных `ctxKey` типа `uint8` (чем больше значение, тем больше ключей), поскольку использовать какие-то стандартные типы данных (например, строки) не является хорошей практикой. И создал константу `ctxKeyUser` этого типа, которая является ключом пользователя в этом контексте.
 
-В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_AuthenticateUser`.
+В заключение добавил в файл `apiserver_internal_test.go` тест `TestServer_AuthenticateUser`.
 
 <details>
     <summary> Замечания по реализации модульного теста middleware TestServer_AuthenticateUser</summary>
@@ -1278,7 +1280,7 @@ handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 Также в методе `configureRouter` с помощью метода `Handle` у поля `s.router` зарегистрировал middleware `authenticateUser` с endpointo'ом `handleUserProfile` (`s.authenticateUser(s.handleUserProfile())`) на обработку `GET` запросов на маршрут `/profile`.
 
-В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleUserProfile`, в котором использовал ту же конструкцию, что и в middleware обработчике, для записи структуры пользователя в контекст запроса - `req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))`, а для вызова обработчика - `s.handleUserProfile().ServeHTTP(rec, req)`. Проверил, что статус-код `http.StatusOK` и что тело ответа `rec` не пустое, с помощью функций `assert.Equal` и `assert.NotNil`, соответственно.
+В заключение добавил в файл `apiserver_internal_test.go` тест `TestServer_HandleUserProfile`, в котором использовал ту же конструкцию, что и в middleware обработчике, для записи структуры пользователя в контекст запроса - `req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))`, а для вызова обработчика - `s.handleUserProfile().ServeHTTP(rec, req)`. Проверил, что статус-код `http.StatusOK` и что тело ответа `rec` не пустое, с помощью функций `assert.Equal` и `assert.NotNil`, соответственно.
 
 После сборки проекта отправил несколько тестовых запросов с помощью утилиты `curl`:
 
@@ -1296,7 +1298,128 @@ curl -X GET http://localhost:8080/profile -H "Authorization: Bearer " -v
 curl -X GET http://localhost:8080/profile -H "Authorization: Bearer токен" -v
 ```
 
-## Middleware-компоненты для CORS, RequestID и логирования
+## Middleware-компонент для CORS
+Замечу, что на данном этапе API сервер не дружит с браузерами. Например, есть **API сервер**, который запущен на `8080` порту и **фронтенд-приложение**, которое использует веб-сервер, **запущенный на другом порту** (например, `3000`). Тогда, обращение из браузера на домен с другим портом - это **Cross-Origin HTTP-запрос**, для выполнения которого требуются специальные **CORS-заголовки** (`Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`).
+
+<details>
+    <summary> Подробнее про CORS</summary>
+
+**CORS (Cross Origin Resource Sharing)** - совместное использование ресурсов разных источников.
+* Это стандарт, позволяющий предоставить доступ к объектам сторонних интернет ресурсов.
+    * **Сторонним** считается любой интернет ресурс, который отличен от запрашиваемого:
+        * Протоколом
+        * Доменом
+        * Портом
+* Это механизм, использующий дополнительные HTTP-заголовки, чтобы дать возможность агенту-пользователя получать разрешения на доступ к выбранным ресурсам сервера на источнике (домене), отличном от того, что сайт использует в данный момент. Говорят, что агент пользователя делает запрос с другого источника (**cross-origin HTTP request**), если источник текущего документа отличается от запрашиваемого ресурса протоколом, доменом или портом.
+
+[Источник](https://developer.mozilla.org/ru/docs/Web/HTTP/CORS)
+</details>
+
+Чтобы отдавать правильные CORS-заголовки, использовал middleware-компонент из библиотеки `gorilla/handlers`:
+
+```bash
+go get github.com/gorilla/handlers
+```
+
+Итак, в директории `internal/controller/apiserver` в файле `apiserver.go` в методе `configureRouter` с помощью метода `Use` и функции `handlers.CORS` добавил CORS-middleware в корневой роутер (поле `s.route`), так как он должен применяться ко всем запросам. В качестве аргументов в функция CORS принимает различные CORS настройки (например, доступные источники запросов, доступные методы). В данном случае передал фукнцию `handlers.AllowedOrigins`, с аргументом `[]string{"*"}`. Знак **wildcard** (`*`) означает, что разрешены запросы с **любых** источников (доменов).
+
+После сборки проекта отправил тестовый запрос с помощью утилиты `curl`:
+
+```bash
+curl -X POST http://localhost:8080/tokens -H "Origin: google.com" -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+```
+
+В запросе передал заголовок `Origin` для имитации работы браузера. В этом заголовке браузер указывает хост, с которого пришел запрос.
+
+## Middleware-компонент для RequestID
+Чтобы идентифицировать, какие действия были вызваны каким запросом, реализовал middleware-компонент, который проставляет для каждого входящего запроса уникальный идентификатор `RequestID`, который будет:
+1. передаваться в заголовке `X-Request-ID` ответа
+2. использоваться внутри системы при логировании
+
+В качестве идентификатора `RequestID` использовал **UUID**.
+
+<details>
+    <summary>Подробнее про UUID</summary>
+
+**UUID (Universal Unique IDentifier)** - 128-битное число, которое в разработке ПО используется в качестве уникального идентификаиора элемента.
+
+Его классическое текстовое представление является серией из 32 шестнадцатеричных символов, разделённых дефисами на пять групп по схеме `8-4-4-4-12`. Например: `9cd5f997-9ec5-44d5-92f4-e3d31c22c65e`.
+
+[Источник](https://habr.com/ru/companies/vk/articles/522094/)
+</details>
+
+Для генерации UUID в go использовал библиотеку **google/uuid**:
+
+```bash
+go get github.com/google/uuid
+```
+
+В директории `internal/controller/apiserver` в файле `apiserver.go` определил middleware-функцию `setRequestID` с такой же сигнатурой как и `authenticateUser`.
+
+С помощью функции `uuid.New` сгенерировал новый `id`, который конвертировал в строку методом `String`. Далее добавил `id` в заголовок ответа `X-Request-ID` (с помощью методов `Header` и `Set`) и вызвал следующий обработчик `next` с помощью метода `ServeHTTP`.
+
+Аналогично передаче структуры пользователя использовал метод `WithContext`, чтобы **добавить UUID запроса в контекст**. Для ключа в функции `context.WithValue` создал еще одну константу `ctxKeyRequestID` типа `ctxKey`.
+
+В заключении добавил в файл `apiserver_internal_test.go` тест `TestServer_SetRequestID`, в котором с помощью функций `assert.Equal` и `assert.NotEmpty` проверил, что статус-код `http.StatusOK` и заголовок ответа `X-Request-ID` не пустой.
+
+Также в методе `configureRouter` с помощью метода `Use` добавил middleware `setRequestID` к корневому роутеру в самое начало цепочки, чтобы у всех следующих middleware-компонентов был доступ к `RequestID`.
+
+После сборки проекта отправил тестовый запрос с помощью утилиты `curl`:
+
+```bash
+curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+```
+
+## Middleware-компонент для логирования
+Чтобы API сервер не работал, как черный ящик (black box), добавил **вывод логов** в консоль.
+
+Для логирования использовал библиотеку **sirupsen/logrus**:
+
+```bash
+go get github.com/sirupsen/logrus
+```
+
+Замечу, что на данный момент есть более производительные библиотеки, например от [uber](https://github.com/uber-go/zap).
+
+В **sirupsen/logrus** есть **7 уровней логирования**: `Trace`, `Debug`, `Info`, `Warning`, `Error`, `Fatal` and `Panic`, которые подробно описаны в [документации](https://pkg.go.dev/github.com/sirupsen/logrus).
+
+Чтобы конфигурировать уровень логирования из `apiserver.toml` файла, добавил новое поле `LogLevel` в конфиг сервера, а в конструкторе `NewConfig` установил значение по умолчанию `debug`.
+ 
+Далее в директории `internal/controller/apiserver` в файле `apiserver.go` добавил в структуру сервера приватное поле `logger` типа `*logrus.Logger`. В конструкторе `NewServer` создал новый логер с помощью функции `logrus.New`.
+
+А также определил метод `configureLogger`, который возвращает ошибку, так как теоретически можно передать неправильную строку. С помощью функции `logrus.ParseLevel` **парсим** уровень логирования из поля `s.config.LogLevel`. Если ошибок нет, **устанавливаем** уровень логирования с помощью метода `SetLevel`.
+
+В методе `StartServer` **вызвал** метод `configureLogger` и с помощью метода `Info` **вывел сообщение** уровня `Info` о запуске API сервера. Замечу, что если поднять `LogLevel` до уровня `Error`, то логер **пропустит** сообщение уровня `Info` о запуске API сервера, так как все сообщения ниже установленного уровня игнорируются.
+
+В директории `internal/controller/apiserver` в файле `apiserver.go` определил middleware-функцию `logRequest`, который логирует каждый входящий запрос и имеет такую же сигнатуру как `setRequestID`. 
+
+Внутри `logRequest` с помощью метода `WithFields` создал переменную `logger` типа `*logrus.Entry`, которая является **локальным логером** с полями, характерными для каждого конкретного запроса. А именно с полями `remote_addr` (IP-адрес клиента) и `request_id` (UUID запроса). Итак, в метод `WithFields` передал `map`'у `logrus.Fields`, IP-адрес клиента получил из поля `RemoteAddr` запроса, а UUID запроса из контекста запроса (связка метода `Context` и `Value` с ключом `ctxKeyRequestID`).
+
+Далее с помощью метода `Infof` вывел сообщение уровня `Info` о начале обработки запроса (поля `r.Method`, `r.RequestURI`). Затем создал переменную `start`, в которую записал **время начала** обработки запроса с помощью функции `time.Now`. Это нужно, чтобы после отработки всех следующих обработчиков, можно было записать в логер сколько времени это заняло (метод `Sub`).
+
+Помимо времени обработки запроса, вывел статус-код, с которым завершилась обработка запроса. Поскольку в метод `ServeHTTP` передается интерфейс `http.ResponseWriter`, у которого нет поля статус-кода, невозможно получить информацию о статус-коде, записанную в другом обработчике. 
+
+Соответственно, в директории `internal/controller/apiserver` создал файл `responsewriter.go`, в котором определил структуру `responseWriter` с полем статус-кода `code` типа `int` и анонимным полем типа `http.ResponseWriter`, чтобы не надо было реализовывать все методы интерфейса `http.ResponseWriter` (они и так будут доступны внутри структуры).
+
+Поскольку у интерфейса `http.ResponseWriter` статус-код записывается методом `WriteHeader`, переопределил его. В частности, записал значение `statusCode` в поле `w.code`, а затем вызвал у `w.ResponseWriter` метод `WriteHeader`.
+
+Таким образом, новый `responseWriter` сохраняет обычную функциональность, потому что выполнение метода делегируется `w.ResponseWriter`, но при этом статус-код сохраняется в переменную.
+
+Итак, в `logRequest` создал переменную `rw` типа `responseWriter`, в которую передал обычный `w` и `http.StatusOK`, а также переменную `level` типа `logrus.Level`, значение которой зависит от значения статус-кода. 
+
+Для серверных ошибок (`rw.code >= 500`) уровень логирования `logrus.ErrorLevel`, для клиентских ошибок (`rw.code >= 400`) - `logrus.WarnLevel`, для всех остальных - `logrus.InfoLevel`.
+
+Затем создал сообщение о результатах и времени выполнения запроса с помощью метода `Logf`, в который передал уровень логирования `level`, строку сообщения, статус-код `rw.code`, его текстовое представление (функция `http.StatusText`) и время.
+
+Также в методе `configureRouter` с помощью метода `Use` добавил middleware `logRequest` сразу после `setRequestID`.
+
+После сборки проекта отправил тестовый запрос с помощью утилиты `curl`:
+
+```bash
+curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+```
+
+Замечу, что если поднять `LogLevel` до уровня `Error`, то логер **пропустит** сообщения уровней ниже (в частности, `Info` и `Warning`).
 
 ## Полезные ссылки
 * [REST API на Golang](https://www.youtube.com/playlist?list=PLehOyJfJkFkJ5m37b4oWh783yzVlHdnUH)

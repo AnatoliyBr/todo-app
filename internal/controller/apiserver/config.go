@@ -5,6 +5,7 @@ import "os"
 type Config struct {
 	BindAddr  string `toml:"bind_addr"`
 	SecretKey string
+	LogLevel  string `toml:"log_level"`
 }
 
 func NewConfig() *Config {
@@ -16,5 +17,6 @@ func NewConfig() *Config {
 	return &Config{
 		BindAddr:  ":8080",
 		SecretKey: sk,
+		LogLevel:  "debug",
 	}
 }

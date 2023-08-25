@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -13,11 +11,15 @@ import (
 	"github.com/AnatoliyBr/todo-app/internal/entity"
 	"github.com/AnatoliyBr/todo-app/internal/usecase"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
 const (
 	ctxKeyUser ctxKey = iota
+	ctxKeyRequestID
 )
 
 var (
@@ -30,6 +32,7 @@ type ctxKey uint8
 
 type server struct {
 	config *Config
+	logger *logrus.Logger
 	router *mux.Router
 	uc     usecase.UseCase
 }
@@ -37,6 +40,7 @@ type server struct {
 func NewServer(config *Config, uc usecase.UseCase) *server {
 	s := &server{
 		config: config,
+		logger: logrus.New(),
 		router: mux.NewRouter(),
 		uc:     uc,
 	}
@@ -47,16 +51,39 @@ func NewServer(config *Config, uc usecase.UseCase) *server {
 }
 
 func (s *server) configureRouter() {
+
+	// middleware
+	s.router.Use(s.setRequestID)
+	s.router.Use(s.logRequest)
+	s.router.Use(handlers.CORS(handlers.AllowedOrigins([]string{"*"})))
+
+	// test
 	s.router.HandleFunc("/hello", s.handleHello()).Methods(http.MethodGet)
 
+	// public
 	s.router.HandleFunc("/users", s.handleUsersCreate()).Methods(http.MethodPost)
 	s.router.HandleFunc("/tokens", s.handleTokensCreate()).Methods(http.MethodPost)
 
+	// private
 	s.router.Handle("/profile", s.authenticateUser(s.handleUserProfile())).Methods(http.MethodGet)
 }
 
+func (s *server) configureLogger() error {
+	level, err := logrus.ParseLevel(s.config.LogLevel)
+	if err != nil {
+		return err
+	}
+	s.logger.SetLevel(level)
+	return nil
+}
+
 func (s *server) StartServer() error {
-	log.Println("start server...")
+	if err := s.configureLogger(); err != nil {
+		return err
+	}
+
+	s.logger.Info("starting api server")
+
 	return http.ListenAndServe(s.config.BindAddr, s)
 }
 
@@ -66,8 +93,48 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleHello() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "hello")
+		s.respond(w, r, http.StatusOK, map[string]string{"test": "hello"})
 	}
+}
+
+func (s *server) setRequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := uuid.New().String()
+		w.Header().Set("X-Request-ID", id)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKeyRequestID, id)))
+	})
+}
+
+func (s *server) logRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := s.logger.WithFields(logrus.Fields{
+			"remote_addr": r.RemoteAddr,
+			"request_id":  r.Context().Value(ctxKeyRequestID),
+		})
+		logger.Infof("started %s %s", r.Method, r.RequestURI)
+
+		start := time.Now()
+		rw := &responseWriter{w, http.StatusOK}
+		next.ServeHTTP(rw, r)
+
+		var level logrus.Level
+		switch {
+		case rw.code >= 500:
+			level = logrus.ErrorLevel
+		case rw.code >= 400:
+			level = logrus.WarnLevel
+		default:
+			level = logrus.InfoLevel
+		}
+
+		logger.Logf(
+			level,
+			"completed with %d %s in %v",
+			rw.code,
+			http.StatusText(rw.code),
+			time.Now().Sub(start),
+		)
+	})
 }
 
 func (s *server) authenticateUser(next http.Handler) http.Handler {

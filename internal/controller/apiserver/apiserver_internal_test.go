@@ -20,15 +20,34 @@ import (
 
 func TestServer_HandleHello(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	uc := usecase.NewAppUseCase(store.NewAppStore(ur))
+	store := store.NewAppStore(ur)
+	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 	rec := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/hello", nil)
-	// s.handleHello().ServeHTTP(rec, req) // #1
-	s.ServeHTTP(rec, req) // #2
-	assert.Equal(t, "hello", rec.Body.String())
+
+	s.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.NotNil(t, rec.Body)
 }
 
+func TestServer_SetRequestID(t *testing.T) {
+	ur := testrepository.NewUserRepository()
+	store := store.NewAppStore(ur)
+	uc := usecase.NewAppUseCase(store)
+	s := NewServer(NewConfig(), uc)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	rec := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+
+	s.setRequestID(handler).ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.NotEmpty(t, rec.Header().Get("X-Request-ID"))
+}
 func TestServer_AuthenticateUser(t *testing.T) {
 	type tokenClaims struct {
 		UserID int `json:"user_id"`
@@ -113,7 +132,8 @@ func TestServer_AuthenticateUser(t *testing.T) {
 }
 func TestServer_HandleUsersCreate(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	uc := usecase.NewAppUseCase(store.NewAppStore(ur))
+	store := store.NewAppStore(ur)
+	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 
 	testCases := []struct {
@@ -149,6 +169,7 @@ func TestServer_HandleUsersCreate(t *testing.T) {
 			b := &bytes.Buffer{}
 			json.NewEncoder(b).Encode(tc.payload)
 			req, _ := http.NewRequest(http.MethodPost, "/users", b)
+
 			s.ServeHTTP(rec, req)
 			assert.Equal(t, tc.expectedCode, rec.Code)
 		})
@@ -158,7 +179,8 @@ func TestServer_HandleUsersCreate(t *testing.T) {
 func TestServer_HandleTokensCreate(t *testing.T) {
 	u := entity.TestUser(t)
 	ur := testrepository.NewUserRepository()
-	uc := usecase.NewAppUseCase(store.NewAppStore(ur))
+	store := store.NewAppStore(ur)
+	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 	s.uc.UsersCreate(u)
 
@@ -204,6 +226,7 @@ func TestServer_HandleTokensCreate(t *testing.T) {
 			b := &bytes.Buffer{}
 			json.NewEncoder(b).Encode(tc.payload)
 			req, _ := http.NewRequest(http.MethodPost, "/tokens", b)
+
 			s.ServeHTTP(rec, req)
 			assert.Equal(t, tc.expectedCode, rec.Code)
 		})
@@ -221,6 +244,7 @@ func TestServer_HandleUserProfile(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/profile", nil)
 	req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
+
 	s.handleUserProfile().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.NotNil(t, rec.Body)

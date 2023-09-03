@@ -10,9 +10,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	testDatabaseURL = os.Getenv("TEST_DATABASE_URL")
+	testDatabaseURL = os.Getenv("TEST_DATABSE_URL_LOCALHOST")
 	if testDatabaseURL == "" {
-		testDatabaseURL = "host=localhost user=dev password=qwerty dbname=todo_test sslmode=disable"
+		testDatabaseURL = "postgres://dev:qwerty@localhost:5432/todo_test"
 	}
 
 	os.Exit(m.Run())

@@ -15,5 +15,7 @@ func TestMain(m *testing.M) {
 		testDatabaseURL = "postgres://dev:qwerty@localhost:5432/todo_test"
 	}
 
+	testDatabaseURL += "?sslmode=disable"
+
 	os.Exit(m.Run())
 }

@@ -26,7 +26,7 @@ func init() {
 		logrus.Fatal(err)
 	}
 
-	databaseURL, ok := os.LookupEnv("DATABSE_URL_LOCALHOST")
+	databaseURL, ok := os.LookupEnv("DATABASE_URL")
 	if !ok || len(databaseURL) == 0 {
 		logrus.Fatalf("migrate: environment variable not declared: %s", databaseURL)
 	}

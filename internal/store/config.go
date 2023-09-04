@@ -9,13 +9,12 @@ type Config struct {
 }
 
 func NewConfig() *Config {
-	databaseURL := os.Getenv("DATABASE_URL_LOCALHOST")
-
-	databaseURL += "?sslmode=disable"
-
+	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		databaseURL = "postgres://dev:qwerty@localhost:5432/todo_dev"
 	}
+
+	databaseURL += "?sslmode=disable"
 
 	return &Config{
 		DatabaseURL: databaseURL,

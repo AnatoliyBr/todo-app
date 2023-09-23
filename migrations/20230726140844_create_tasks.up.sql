@@ -4,5 +4,6 @@ CREATE TABLE tasks (
     details VARCHAR NOT NULL,
     deadline TIMESTAMP NOT NULL,
     done BOOLEAN DEFAULT FALSE,
-    list_id BIGINT REFERENCES lists ON DELETE CASCADE
+    list_id BIGINT REFERENCES lists ON DELETE CASCADE,
+    UNIQUE(task_title, list_id)
 );

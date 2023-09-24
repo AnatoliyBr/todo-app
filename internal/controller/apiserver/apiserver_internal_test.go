@@ -20,7 +20,8 @@ import (
 
 func TestServer_HandleHello(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	store := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 	rec := httptest.NewRecorder()
@@ -33,7 +34,8 @@ func TestServer_HandleHello(t *testing.T) {
 
 func TestServer_SetRequestID(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	store := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 
@@ -55,7 +57,8 @@ func TestServer_AuthenticateUser(t *testing.T) {
 	}
 
 	ur := testrepository.NewUserRepository()
-	store := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 	u := entity.TestUser(t)
@@ -132,7 +135,8 @@ func TestServer_AuthenticateUser(t *testing.T) {
 }
 func TestServer_HandleUsersCreate(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	store := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 
@@ -179,7 +183,8 @@ func TestServer_HandleUsersCreate(t *testing.T) {
 func TestServer_HandleTokensCreate(t *testing.T) {
 	u := entity.TestUser(t)
 	ur := testrepository.NewUserRepository()
-	store := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 	s.uc.UsersCreate(u)
@@ -236,7 +241,8 @@ func TestServer_HandleTokensCreate(t *testing.T) {
 func TestServer_HandleUserProfile(t *testing.T) {
 	u := entity.TestUser(t)
 	ur := testrepository.NewUserRepository()
-	store := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(store)
 	s := NewServer(NewConfig(), uc)
 	s.uc.UsersCreate(u)

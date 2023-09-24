@@ -12,7 +12,8 @@ import (
 
 func TestAppUseCase_UsersCreate(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	s := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
 	u := entity.TestUser(t)
 	uc := usecase.NewAppUseCase(s)
 
@@ -22,7 +23,8 @@ func TestAppUseCase_UsersCreate(t *testing.T) {
 
 func TestAppUseCase_UsersFindByID(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	s := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(s)
 	u1 := entity.TestUser(t)
 	_, err := uc.UsersFindByID(u1.UserID)
@@ -36,7 +38,8 @@ func TestAppUseCase_UsersFindByID(t *testing.T) {
 
 func TestAppUseCase_UsersFindByEmail(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	s := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
 	uc := usecase.NewAppUseCase(s)
 	u1 := entity.TestUser(t)
 	_, err := uc.UsersFindByEmail(u1.Email)
@@ -46,4 +49,97 @@ func TestAppUseCase_UsersFindByEmail(t *testing.T) {
 	u2, err := uc.UsersFindByEmail(u1.Email)
 	assert.NoError(t, err)
 	assert.NotNil(t, u2)
+}
+
+func TestAppUseCase_ListsCreate(t *testing.T) {
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(s)
+	u := entity.TestUser(t)
+	l := entity.TestList(t)
+	uc.UsersCreate(u)
+	l.UserID = u.UserID
+
+	err := uc.ListsCreate(l)
+	assert.NoError(t, err)
+}
+
+func TestAppUseCase_ListsFindByTitle(t *testing.T) {
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(s)
+	u := entity.TestUser(t)
+	l1 := entity.TestList(t)
+	uc.UsersCreate(u)
+	l1.UserID = u.UserID
+
+	_, err := uc.ListsFindByTitle(u.UserID, l1.ListTitle)
+	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
+
+	uc.ListsCreate(l1)
+	l2, err := uc.ListsFindByTitle(u.UserID, l1.ListTitle)
+	assert.NoError(t, err)
+	assert.NotNil(t, l2)
+}
+
+func TestAppUseCase_ListsEdit(t *testing.T) {
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(s)
+	u := entity.TestUser(t)
+	l1 := entity.TestList(t)
+	l2 := entity.TestList(t)
+	uc.UsersCreate(u)
+	l1.UserID = u.UserID
+	l2.UserID = u.UserID
+	uc.ListsCreate(l1)
+
+	l2.ListTitle = "TEST TITLE 2"
+	l3, err := uc.ListsEdit(l2)
+	assert.NoError(t, err)
+	assert.NotNil(t, l3)
+}
+
+func TestAppUseCase_ListsDelete(t *testing.T) {
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(s)
+	u := entity.TestUser(t)
+	l := entity.TestList(t)
+	uc.UsersCreate(u)
+	l.UserID = u.UserID
+	uc.ListsCreate(l)
+
+	err := uc.ListsDelete(l)
+	assert.NoError(t, err)
+
+	_, err = uc.ListsFindByTitle(u.UserID, l.ListTitle)
+	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
+}
+
+func TestAppUseCase_ListsFindByUser(t *testing.T) {
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(s)
+	u := entity.TestUser(t)
+	l1 := entity.TestList(t)
+	l2 := entity.TestList(t)
+	l2.ListTitle = "TEST TITLE 2"
+	uc.UsersCreate(u)
+	l1.UserID = u.UserID
+	l2.UserID = u.UserID
+
+	_, err := uc.ListsFindByUser(u.UserID)
+	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
+
+	uc.ListsCreate(l1)
+	uc.ListsCreate(l2)
+	lists, err := uc.ListsFindByUser(u.UserID)
+	assert.NoError(t, err)
+	assert.NotNil(t, lists)
 }

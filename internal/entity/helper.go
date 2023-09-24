@@ -8,3 +8,9 @@ func TestUser(t *testing.T) *User {
 		Password: "password",
 	}
 }
+
+func TestList(t *testing.T) *List {
+	return &List{
+		ListTitle: "TEST TITLE 1",
+	}
+}

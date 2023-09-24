@@ -11,7 +11,8 @@ import (
 
 func TestUserRepository_Create(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	s := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
 	u := entity.TestUser(t)
 
 	assert.NotNil(t, u)
@@ -20,7 +21,8 @@ func TestUserRepository_Create(t *testing.T) {
 
 func TestUserRepository_FindByID(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	s := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
 	u1 := entity.TestUser(t)
 	_, err := s.User().FindByID(u1.UserID)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
@@ -33,7 +35,8 @@ func TestUserRepository_FindByID(t *testing.T) {
 
 func TestUserRepository_FindByEmail(t *testing.T) {
 	ur := testrepository.NewUserRepository()
-	s := store.NewAppStore(ur)
+	lr := testrepository.NewListRepository()
+	s := store.NewAppStore(ur, lr)
 	u1 := entity.TestUser(t)
 	_, err := s.User().FindByEmail(u1.Email)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())

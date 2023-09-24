@@ -33,9 +33,10 @@ func Run() {
 
 	// Repository
 	ur := sqlrepository.NewUserRepository(db)
+	lr := sqlrepository.NewListRepository(db)
 
 	// Store
-	store := store.NewAppStore(ur)
+	store := store.NewAppStore(ur, lr)
 
 	// UseCase
 	uc := usecase.NewAppUseCase(store)

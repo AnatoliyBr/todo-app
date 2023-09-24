@@ -26,3 +26,23 @@ func (uc *AppUseCase) UsersFindByID(id int) (*entity.User, error) {
 func (uc *AppUseCase) UsersFindByEmail(email string) (*entity.User, error) {
 	return uc.store.User().FindByEmail(email)
 }
+
+func (uc *AppUseCase) ListsCreate(l *entity.List) error {
+	return uc.store.List().Create(l)
+}
+
+func (uc *AppUseCase) ListsFindByTitle(userID int, title string) (*entity.List, error) {
+	return uc.store.List().FindByTitle(userID, title)
+}
+
+func (uc *AppUseCase) ListsEdit(l *entity.List) (*entity.List, error) {
+	return uc.store.List().Edit(l)
+}
+
+func (uc *AppUseCase) ListsDelete(l *entity.List) error {
+	return uc.store.List().Delete(l)
+}
+
+func (uc *AppUseCase) ListsFindByUser(userID int) ([]*entity.List, error) {
+	return uc.store.List().FindByUser(userID)
+}

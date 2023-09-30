@@ -239,7 +239,32 @@ func TestServer_HandleTokensCreate(t *testing.T) {
 }
 
 func TestServer_HandleUserProfile(t *testing.T) {
+	u1 := entity.TestUser(t)
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(store)
+	s := NewServer(NewConfig(), uc)
+	s.uc.UsersCreate(u1)
+	u1.Sanitize()
+	u1.EncryptedPassword = ""
+
+	rec := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/profile", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u1))
+
+	s.handleUserProfile().ServeHTTP(rec, req)
+
+	u2 := &entity.User{}
+	json.NewDecoder(rec.Body).Decode(u2)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, u1, u2)
+}
+
+func TestSerer_HandleListsCreate(t *testing.T) {
 	u := entity.TestUser(t)
+	l := entity.TestList(t)
 	ur := testrepository.NewUserRepository()
 	lr := testrepository.NewListRepository()
 	store := store.NewAppStore(ur, lr)
@@ -247,11 +272,42 @@ func TestServer_HandleUserProfile(t *testing.T) {
 	s := NewServer(NewConfig(), uc)
 	s.uc.UsersCreate(u)
 
-	rec := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/profile", nil)
-	req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
+	testCases := []struct {
+		name         string
+		payload      interface{}
+		expectedCode int
+	}{
+		{
+			name: "valid",
+			payload: map[string]string{
+				"list_title": l.ListTitle,
+			},
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name:         "invalid payload",
+			payload:      "invalid",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid title",
+			payload: map[string]string{
+				"list_title": "inv@li_d title *",
+			},
+			expectedCode: http.StatusUnprocessableEntity,
+		},
+	}
 
-	s.handleUserProfile().ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.NotNil(t, rec.Body)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			b := &bytes.Buffer{}
+			json.NewEncoder(b).Encode(tc.payload)
+			req, _ := http.NewRequest(http.MethodPost, "/lists/", b)
+			req = req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
+
+			s.handleListsCreate().ServeHTTP(rec, req)
+			assert.Equal(t, tc.expectedCode, rec.Code)
+		})
+	}
 }

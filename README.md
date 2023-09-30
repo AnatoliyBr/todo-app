@@ -88,7 +88,8 @@ make compose-up
 ## Примеры запросов
 * [Регистрация](#регистрация)
 * [Аутентификация](#аутентификация)
-* [Просмотр профиля]()
+* [Просмотр профиля](#просмотр-профиля)
+* [Создание списка](#создание-списка)
 
 ### Регистрация
 Регистрация пользователя:
@@ -143,4 +144,23 @@ Content-Length: 41
 Content-Type: text/plain; charset=utf-8
 
 {"user_id":1,"email":"user@example.org"}
+```
+
+### Создание списка
+Создание списка задач:
+
+```bash
+curl -X POST http://localhost:8080/lists/ -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k" -d "{\"list_title\":\"test title 1\"}" -v
+```
+
+Пример ответа:
+
+```bash
+HTTP/1.1 201 Created
+X-Request-Id: 6f72910e-c334-4b8f-b657-641d77e57391
+Date: Sat, 30 Sep 2023 17:06:43 GMT
+Content-Length: 54
+Content-Type: text/plain; charset=utf-8
+
+{"list_id":1,"list_title":"TEST TITLE 1","user_id":1}
 ```

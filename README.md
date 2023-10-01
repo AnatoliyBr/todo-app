@@ -95,26 +95,31 @@ make compose-up
 Регистрация пользователя:
 
 ```bash
-curl -X POST http://localhost:8080/users -d "{\"email\":\"user@example.org\", \"password\":\"password\"}"
+curl --location --request POST http://localhost:8080/users \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"password"
+}'
 ```
 
 Пример ответа:
 
 ```bash
-HTTP/1.1 201 Created
-X-Request-Id: da4312da-2050-4387-97b4-2ff3ecd3ebc7
-Date: Sun, 03 Sep 2023 18:48:53 GMT
-Content-Length: 41
-Content-Type: text/plain; charset=utf-8
-
-{"user_id":1,"email":"user@example.org"}
+{
+    "user_id":1,
+    "email":"user@example.org"
+}
 ```
 
 ### Аутентификация
 Аутентификация пользователя и выдача JWT:
 
 ```bash
-curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+curl --location --request POST http://localhost:8080/tokens \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"password"
+}' -v
 ```
 
 Пример ответа:
@@ -131,36 +136,36 @@ Content-Length: 0
 Просмотр профиля аутентифицированного пользователя:
 
 ```bash
-curl -X GET http://localhost:8080/profile -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k" -v
+curl --location --request GET http://localhost:8080/profile \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k'
 ```
 
 Пример ответа:
 
 ```bash
-HTTP/1.1 200 OK
-X-Request-Id: ca633cd9-bd9c-4e44-b8a8-cdedaa92e2fe
-Date: Sun, 03 Sep 2023 18:47:47 GMT
-Content-Length: 41
-Content-Type: text/plain; charset=utf-8
-
-{"user_id":1,"email":"user@example.org"}
+{
+    "user_id":1,
+    "email":"user@example.org"
+}
 ```
 
 ### Создание списка
 Создание списка задач:
 
 ```bash
-curl -X POST http://localhost:8080/lists/ -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k" -d "{\"list_title\":\"test title 1\"}" -v
+curl --location --request POST http://localhost:8080/lists/ \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k' \
+--data-raw '{
+  "list_title":"test title 1"
+}'
 ```
 
 Пример ответа:
 
 ```bash
-HTTP/1.1 201 Created
-X-Request-Id: 6f72910e-c334-4b8f-b657-641d77e57391
-Date: Sat, 30 Sep 2023 17:06:43 GMT
-Content-Length: 54
-Content-Type: text/plain; charset=utf-8
-
-{"list_id":1,"list_title":"TEST TITLE 1","user_id":1}
+{
+    "list_id": 1,
+    "list_title": "TEST TITLE 1",
+    "user_id": 1
+}
 ```

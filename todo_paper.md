@@ -826,16 +826,34 @@ DELETE /tasks/{id} - удаление задачи из списка
 Невалидный:
 
 ```bash
-curl -X POST http://localhost:8080/users -d "{\"email\":\"invalid\"}"
+curl --location --request POST http://localhost:8080/users \
+--data-raw '{
+    "email":"invalid"
+}'
 ```
 
 Валидный:
 
 ```bash
-curl -X POST http://localhost:8080/users -d "{\"email\":\"user@example.org\", \"password\":\"password\"}"
+curl --location --request POST http://localhost:8080/users \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"password"
+}'
 ```
 
-Замечу, что на Windows требуется экранировать кавычки (`" "`) слэшами (`\" \"`).
+<details>
+    <summary> Сводка по опциям curl</summary>
+
+* `--location` (`-L`) - выполнять перенаправления (redirect)
+* `--request` (`-X`) - использовать HTTP-метод
+* `--header` (`-H`) - установить HTTP-заголовок
+* `--data-raw` - отправить указанные данные в POST запросе
+    * тоже самое что `--data` (`-d`), но не имеет специальной интерпретации символа `@`
+* `--verbose` (`-v`) - подробный вывод запросв и ответв (вместе с заголовками)
+</details>
+
+Замечу, что на Windows требуется экранировать кавычки (`" "`) слэшами (`\" \"`), а для записи запроса в несколько строк используется символ `^`.
 
 ## Принцип Stateless
 Помним, что **принципы REST** помогают добиться следующих **нефункциональных требований**:
@@ -1150,19 +1168,29 @@ go get github.com/golang-jwt/jwt/v5
 Невалидные:
 
 ```bash
-curl -X POST http://localhost:8080/tokens -d "{\"\"}"
-curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"invalid\"}"
+curl --location --request POST http://localhost:8080/tokens \
+--data-raw '{
+    ""
+}'
+```
+
+```bash
+curl --location --request POST http://localhost:8080/tokens \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"invalid"
+}' -v
 ```
 
 Валидный:
 
 ```bash
-curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+curl --location --request POST http://localhost:8080/tokens \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"password"
+}' -v
 ```
-
-Замечу, что на Windows требуется экранировать кавычки (`" "`) слэшами (`\" \"`).
-
-Чтобы **полностью** показать запрос и ответ, использовал флаг `-v` (`--verbose`) - подробный вывод.
 
 ## Middleware-компоненты. Пакет context
 Небольшое отступление перед написанием middleware-компонентов для:
@@ -1289,7 +1317,8 @@ handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 Невалидный:
 
 ```bash
-curl -X GET http://localhost:8080/profile -H "Authorization: Bearer " -v
+curl --location --request GET http://localhost:8080/profile \
+--header 'Authorization: Bearer ' -v
 ```
 
 Кроме того, отправлял запросы **после истечения срока действия токена** и **с измененным JWT payload**.
@@ -1297,7 +1326,8 @@ curl -X GET http://localhost:8080/profile -H "Authorization: Bearer " -v
 Валидный:
 
 ```bash
-curl -X GET http://localhost:8080/profile -H "Authorization: Bearer токен" -v
+curl --location --request GET http://localhost:8080/profile \
+--header 'Authorization: Bearer токен' -v
 ```
 
 ## Middleware-компонент для CORS
@@ -1328,7 +1358,12 @@ go get github.com/gorilla/handlers
 После сборки проекта отправил тестовый запрос с помощью утилиты `curl`:
 
 ```bash
-curl -X POST http://localhost:8080/tokens -H "Origin: google.com" -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+curl --location --request POST http://localhost:8080/tokens \
+--header 'Origin: google.com' \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"password"
+}' -v
 ```
 
 В запросе передал заголовок `Origin` для имитации работы браузера. В этом заголовке браузер указывает хост, с которого пришел запрос.
@@ -1369,7 +1404,11 @@ go get github.com/google/uuid
 После сборки проекта отправил тестовый запрос с помощью утилиты `curl`:
 
 ```bash
-curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+curl --location --request POST http://localhost:8080/tokens \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"password"
+}' -v
 ```
 
 ## Middleware-компонент для логирования
@@ -1418,7 +1457,11 @@ go get github.com/sirupsen/logrus
 После сборки проекта отправил тестовый запрос с помощью утилиты `curl`:
 
 ```bash
-curl -X POST http://localhost:8080/tokens -d "{\"email\":\"user@example.org\", \"password\":\"password\"}" -v
+curl --location --request POST http://localhost:8080/tokens \
+--data-raw '{
+    "email":"user@example.org",
+    "password":"password"
+}' -v
 ```
 
 Замечу, что если поднять `LogLevel` до уровня `Error`, то логер **пропустит** сообщения уровней ниже (в частности, `Info` и `Warning`).

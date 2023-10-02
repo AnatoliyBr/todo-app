@@ -69,7 +69,8 @@ func (s *server) configureRouter() {
 
 	listSubrouter := s.router.PathPrefix("/lists").Subrouter()
 	listSubrouter.Use(s.authenticateUser)
-	listSubrouter.HandleFunc("/", s.handleListsCreate()).Methods(http.MethodPost)
+	listSubrouter.HandleFunc("", s.handleListsCreate()).Methods(http.MethodPost)
+	listSubrouter.HandleFunc("", s.handleListsGetByUser()).Methods(http.MethodGet)
 }
 
 func (s *server) configureLogger() error {
@@ -297,6 +298,20 @@ func (s *server) handleListsCreate() http.HandlerFunc {
 		}
 
 		s.respond(w, r, http.StatusCreated, l)
+	}
+}
+
+func (s *server) handleListsGetByUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u := r.Context().Value(ctxKeyUser).(*entity.User)
+
+		list, err := s.uc.ListsFindByUser(u.UserID)
+		if err != nil {
+			s.error(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		s.respond(w, r, http.StatusOK, list)
 	}
 }
 

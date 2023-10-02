@@ -10,7 +10,7 @@ import (
 type List struct {
 	ListID    int    `json:"list_id"`
 	ListTitle string `json:"list_title"`
-	UserID    int    `json:"user_id"`
+	UserID    int    `json:"user_id,omitempty"`
 }
 
 func (l *List) Validate() error {

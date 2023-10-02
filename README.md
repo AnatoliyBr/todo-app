@@ -16,9 +16,9 @@ POST /tokens - аутентификация пользователя и выда
 ```
 GET /profile - просмотр профиля пользователя
 
+POST /lists - создание списка
 GET /lists - просмотр всех списков
 
-POST /lists - создание списка
 GET /lists/{id} - просмотр списка
 PUT /lists/{id} - редактирование списка
 DELETE /lists/{id} - удаление списка
@@ -90,6 +90,7 @@ make compose-up
 * [Аутентификация](#аутентификация)
 * [Просмотр профиля](#просмотр-профиля)
 * [Создание списка](#создание-списка)
+* [Просмотр всех списков](#просмотр-всех-списков)
 
 ### Регистрация
 Регистрация пользователя:
@@ -153,7 +154,7 @@ curl --location --request GET http://localhost:8080/profile \
 Создание списка задач:
 
 ```bash
-curl --location --request POST http://localhost:8080/lists/ \
+curl --location --request POST http://localhost:8080/lists \
 --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k' \
 --data-raw '{
   "list_title":"test title 1"
@@ -168,4 +169,27 @@ curl --location --request POST http://localhost:8080/lists/ \
     "list_title": "TEST TITLE 1",
     "user_id": 1
 }
+```
+
+### Просмотр всех списков
+Просмотр всех списков задач:
+
+```bash
+curl --location --request GET http://localhost:8080/lists \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k'
+```
+
+Пример ответа:
+
+```bash
+[
+    {
+        "list_id": 1,
+        "list_title": "TEST TITLE 1"
+    },
+    {
+        "list_id": 2,
+        "list_title": "TEST TITLE 2"
+    }
+]
 ```

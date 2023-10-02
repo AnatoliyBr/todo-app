@@ -303,11 +303,35 @@ func TestSerer_HandleListsCreate(t *testing.T) {
 			rec := httptest.NewRecorder()
 			b := &bytes.Buffer{}
 			json.NewEncoder(b).Encode(tc.payload)
-			req, _ := http.NewRequest(http.MethodPost, "/lists/", b)
+			req, _ := http.NewRequest(http.MethodPost, "/lists", b)
 			req = req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
 
 			s.handleListsCreate().ServeHTTP(rec, req)
 			assert.Equal(t, tc.expectedCode, rec.Code)
 		})
 	}
+}
+
+func TestServer_HandleListsGetByUser(t *testing.T) {
+	u := entity.TestUser(t)
+	l1 := entity.TestList(t)
+	l2 := entity.TestList(t)
+	l2.ListTitle = "TEST TITLE 2"
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(store)
+	s := NewServer(NewConfig(), uc)
+	s.uc.UsersCreate(u)
+	l1.UserID = u.UserID
+	l2.UserID = u.UserID
+	s.uc.ListsCreate(l1)
+	s.uc.ListsCreate(l2)
+
+	rec := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/lists", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
+
+	s.handleListsGetByUser().ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
 }

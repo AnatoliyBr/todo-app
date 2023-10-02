@@ -94,7 +94,7 @@ func (r *ListRepository) FindByUser(userID int) ([]*entity.List, error) {
 		if err != nil {
 			return nil, err
 		}
-		lists = append(lists, &entity.List{ListID: listID, ListTitle: listTitle, UserID: userID})
+		lists = append(lists, &entity.List{ListID: listID, ListTitle: listTitle})
 	}
 
 	if err := rows.Err(); err != nil {

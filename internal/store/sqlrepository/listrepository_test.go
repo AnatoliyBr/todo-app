@@ -29,7 +29,7 @@ func TestListRepository_Create(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestListRepository_FindByTitle(t *testing.T) {
+func TestListRepository_FindByID(t *testing.T) {
 	db, teardown := sqlrepository.TestDB(t, testDatabaseURL)
 	defer teardown("users", "lists")
 
@@ -41,11 +41,11 @@ func TestListRepository_FindByTitle(t *testing.T) {
 	s.User().Create(u)
 	l1.UserID = u.UserID
 
-	_, err := s.List().FindByTitle(u.UserID, l1.ListTitle)
+	_, err := s.List().FindByID(l1.ListID, u.UserID)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
 
 	s.List().Create(l1)
-	l2, err := s.List().FindByTitle(u.UserID, l1.ListTitle)
+	l2, err := s.List().FindByID(l1.ListID, u.UserID)
 	assert.NoError(t, err)
 	assert.NotNil(t, l2)
 }
@@ -85,7 +85,7 @@ func TestListRepository_Delete(t *testing.T) {
 	err := s.List().Delete(l)
 	assert.NoError(t, err)
 
-	_, err = s.List().FindByTitle(u.UserID, l.ListTitle)
+	_, err = s.List().FindByID(l.ListID, u.UserID)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
 }
 

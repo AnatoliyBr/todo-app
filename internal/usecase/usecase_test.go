@@ -65,7 +65,7 @@ func TestAppUseCase_ListsCreate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestAppUseCase_ListsFindByTitle(t *testing.T) {
+func TestAppUseCase_ListsFindByID(t *testing.T) {
 	ur := testrepository.NewUserRepository()
 	lr := testrepository.NewListRepository()
 	s := store.NewAppStore(ur, lr)
@@ -75,11 +75,11 @@ func TestAppUseCase_ListsFindByTitle(t *testing.T) {
 	uc.UsersCreate(u)
 	l1.UserID = u.UserID
 
-	_, err := uc.ListsFindByTitle(u.UserID, l1.ListTitle)
+	_, err := uc.ListsFindByID(l1.ListID, u.UserID)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
 
 	uc.ListsCreate(l1)
-	l2, err := uc.ListsFindByTitle(u.UserID, l1.ListTitle)
+	l2, err := uc.ListsFindByID(l1.ListID, u.UserID)
 	assert.NoError(t, err)
 	assert.NotNil(t, l2)
 }
@@ -117,7 +117,7 @@ func TestAppUseCase_ListsDelete(t *testing.T) {
 	err := uc.ListsDelete(l)
 	assert.NoError(t, err)
 
-	_, err = uc.ListsFindByTitle(u.UserID, l.ListTitle)
+	_, err = uc.ListsFindByID(l.ListID, u.UserID)
 	assert.EqualError(t, err, store.ErrRecordNotFound.Error())
 }
 

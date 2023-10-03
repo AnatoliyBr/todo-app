@@ -91,6 +91,7 @@ make compose-up
 * [Просмотр профиля](#просмотр-профиля)
 * [Создание списка](#создание-списка)
 * [Просмотр всех списков](#просмотр-всех-списков)
+* [Просмотр списка](#просмотр-списка)
 
 ### Регистрация
 Регистрация пользователя:
@@ -192,4 +193,22 @@ curl --location --request GET http://localhost:8080/lists \
         "list_title": "TEST TITLE 2"
     }
 ]
+```
+
+### Просмотр списка
+Просмотр списка задач по идентификатору:
+
+```bash
+curl --location --request GET http://localhost:8080/lists/1 \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2OTM3NjY5OTB9.FhxzjhKtylOZQYrpG88r_lH7-kssye9IWh7UsZ8_t6k'
+```
+
+Пример ответа:
+
+```bash
+{
+    "list_id": 1,
+    "list_title": "TEST TITLE 1",
+    "user_id": 1
+}
 ```

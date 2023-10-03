@@ -15,7 +15,7 @@ type UserRepository interface {
 
 type ListRepository interface {
 	Create(*entity.List) error
-	FindByTitle(int, string) (*entity.List, error)
+	FindByID(int, int) (*entity.List, error)
 	Edit(*entity.List) (*entity.List, error)
 	Delete(*entity.List) error
 	FindByUser(int) ([]*entity.List, error)

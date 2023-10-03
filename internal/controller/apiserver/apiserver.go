@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,6 +72,7 @@ func (s *server) configureRouter() {
 	listSubrouter.Use(s.authenticateUser)
 	listSubrouter.HandleFunc("", s.handleListsCreate()).Methods(http.MethodPost)
 	listSubrouter.HandleFunc("", s.handleListsGetByUser()).Methods(http.MethodGet)
+	listSubrouter.HandleFunc("/{listID:[0-9]+}", s.handleListsGetByID()).Methods(http.MethodGet)
 }
 
 func (s *server) configureLogger() error {
@@ -312,6 +314,27 @@ func (s *server) handleListsGetByUser() http.HandlerFunc {
 		}
 
 		s.respond(w, r, http.StatusOK, list)
+	}
+}
+
+func (s *server) handleListsGetByID() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		u := r.Context().Value(ctxKeyUser).(*entity.User)
+
+		v := mux.Vars(r)
+		listID, err := strconv.Atoi(v["listID"])
+		if err != nil {
+			s.error(w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		l, err := s.uc.ListsFindByID(listID, u.UserID)
+		if err != nil {
+			s.error(w, r, http.StatusNotFound, err)
+			return
+		}
+
+		s.respond(w, r, http.StatusOK, l)
 	}
 }
 

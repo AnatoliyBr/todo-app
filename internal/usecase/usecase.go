@@ -31,8 +31,8 @@ func (uc *AppUseCase) ListsCreate(l *entity.List) error {
 	return uc.store.List().Create(l)
 }
 
-func (uc *AppUseCase) ListsFindByTitle(userID int, title string) (*entity.List, error) {
-	return uc.store.List().FindByTitle(userID, title)
+func (uc *AppUseCase) ListsFindByID(listID, userID int) (*entity.List, error) {
+	return uc.store.List().FindByID(listID, userID)
 }
 
 func (uc *AppUseCase) ListsEdit(l *entity.List) (*entity.List, error) {

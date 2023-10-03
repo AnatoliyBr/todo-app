@@ -8,7 +8,7 @@ type UseCase interface {
 	UsersFindByEmail(string) (*entity.User, error)
 
 	ListsCreate(*entity.List) error
-	ListsFindByTitle(int, string) (*entity.List, error)
+	ListsFindByID(int, int) (*entity.List, error)
 	ListsEdit(*entity.List) (*entity.List, error)
 	ListsDelete(*entity.List) error
 	ListsFindByUser(int) ([]*entity.List, error)

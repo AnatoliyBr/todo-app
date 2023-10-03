@@ -29,12 +29,12 @@ func (r *ListRepository) Create(l *entity.List) error {
 	).Scan(&l.ListID)
 }
 
-func (r *ListRepository) FindByTitle(userID int, title string) (*entity.List, error) {
+func (r *ListRepository) FindByID(listID, userID int) (*entity.List, error) {
 	l := &entity.List{}
 	if err := r.db.QueryRow(
-		"SELECT list_id, list_title, user_id FROM lists WHERE user_id = $1 AND list_title = $2",
+		"SELECT list_id, list_title, user_id FROM lists WHERE list_id = $1 AND user_id = $2",
+		listID,
 		userID,
-		title,
 	).Scan(
 		&l.ListID,
 		&l.ListTitle,

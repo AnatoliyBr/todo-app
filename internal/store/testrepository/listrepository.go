@@ -28,9 +28,9 @@ func (r *ListRepository) Create(l *entity.List) error {
 	return nil
 }
 
-func (r *ListRepository) FindByTitle(userID int, title string) (*entity.List, error) {
+func (r *ListRepository) FindByID(listID, userID int) (*entity.List, error) {
 	for _, l := range r.lists {
-		if l.UserID == userID && l.ListTitle == title {
+		if l.ListID == listID && l.UserID == userID {
 			return l, nil
 		}
 	}

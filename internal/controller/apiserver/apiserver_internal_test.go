@@ -15,6 +15,7 @@ import (
 	"github.com/AnatoliyBr/todo-app/internal/store/testrepository"
 	"github.com/AnatoliyBr/todo-app/internal/usecase"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -334,4 +335,53 @@ func TestServer_HandleListsGetByUser(t *testing.T) {
 
 	s.handleListsGetByUser().ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestServer_HandleListsGetByID(t *testing.T) {
+	u := entity.TestUser(t)
+	l := entity.TestList(t)
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(store)
+	s := NewServer(NewConfig(), uc)
+	s.uc.UsersCreate(u)
+	l.UserID = u.UserID
+	s.uc.ListsCreate(l)
+
+	assert.NotNil(t, l.ListID)
+
+	testCases := []struct {
+		name         string
+		id           string
+		expectedCode int
+	}{
+		{
+			name:         "valid",
+			id:           "1",
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:         "not found",
+			id:           "2",
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			name:         "invalid",
+			id:           "invalid",
+			expectedCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/lists/%s", tc.id), nil)
+			req = req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
+			req = mux.SetURLVars(req, map[string]string{"listID": tc.id})
+
+			s.handleListsGetByID().ServeHTTP(rec, req)
+			assert.Equal(t, tc.expectedCode, rec.Code)
+		})
+	}
 }

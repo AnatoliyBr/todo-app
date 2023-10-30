@@ -385,3 +385,88 @@ func TestServer_HandleListsGetByID(t *testing.T) {
 		})
 	}
 }
+
+func TestServer_HandleListsEdit(t *testing.T) {
+	u := entity.TestUser(t)
+	ur := testrepository.NewUserRepository()
+	lr := testrepository.NewListRepository()
+	store := store.NewAppStore(ur, lr)
+	uc := usecase.NewAppUseCase(store)
+	s := NewServer(NewConfig(), uc)
+	s.uc.UsersCreate(u)
+
+	testCases := []struct {
+		name         string
+		id           string
+		payload      interface{}
+		expectedCode int
+	}{
+		{
+			name: "valid",
+			id:   "1",
+			payload: map[string]string{
+				"list_title": "NEW TITLE 2",
+			},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:         "invalid payload",
+			id:           "1",
+			payload:      "invalid",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "not found",
+			id:   "2",
+			payload: map[string]string{
+				"list_title": "TEST TITLE 2",
+			},
+			expectedCode: http.StatusNotFound,
+		},
+		{
+			name: "invalid id",
+			id:   "invalid",
+			payload: map[string]string{
+				"list_title": "TEST TITLE 2",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid title",
+			id:   "1",
+			payload: map[string]string{
+				"list_title": "inv@li_d title *",
+			},
+			expectedCode: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "existing title",
+			id:   "1",
+			payload: map[string]string{
+				"list_title": "TEST TITLE 1",
+			},
+			expectedCode: http.StatusUnprocessableEntity,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			l := entity.TestList(t)
+			l.UserID = u.UserID
+			s.uc.ListsCreate(l)
+			assert.NotNil(t, l.ListID)
+
+			rec := httptest.NewRecorder()
+			b := &bytes.Buffer{}
+			json.NewEncoder(b).Encode(tc.payload)
+			req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/lists/%s", tc.id), b)
+			req = req.WithContext(context.WithValue(req.Context(), ctxKeyUser, u))
+			req = mux.SetURLVars(req, map[string]string{"listID": tc.id})
+
+			s.handleListsEdit().ServeHTTP(rec, req)
+			assert.Equal(t, tc.expectedCode, rec.Code)
+
+			s.uc.ListsDelete(l)
+		})
+	}
+}

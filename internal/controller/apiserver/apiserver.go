@@ -73,6 +73,7 @@ func (s *server) configureRouter() {
 	listSubrouter.HandleFunc("", s.handleListsCreate()).Methods(http.MethodPost)
 	listSubrouter.HandleFunc("", s.handleListsGetByUser()).Methods(http.MethodGet)
 	listSubrouter.HandleFunc("/{listID:[0-9]+}", s.handleListsGetByID()).Methods(http.MethodGet)
+	listSubrouter.HandleFunc("/{listID:[0-9]+}", s.handleListsEdit()).Methods(http.MethodPut)
 }
 
 func (s *server) configureLogger() error {
@@ -331,6 +332,48 @@ func (s *server) handleListsGetByID() http.HandlerFunc {
 		l, err := s.uc.ListsFindByID(listID, u.UserID)
 		if err != nil {
 			s.error(w, r, http.StatusNotFound, err)
+			return
+		}
+
+		s.respond(w, r, http.StatusOK, l)
+	}
+}
+
+func (s *server) handleListsEdit() http.HandlerFunc {
+	type request struct {
+		ListTitle string `json:"list_title"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		req := &request{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+			s.error(w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		u := r.Context().Value(ctxKeyUser).(*entity.User)
+
+		v := mux.Vars(r)
+		listID, err := strconv.Atoi(v["listID"])
+		if err != nil {
+			s.error(w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		if _, err = s.uc.ListsFindByID(listID, u.UserID); err != nil {
+			s.error(w, r, http.StatusNotFound, err)
+			return
+		}
+
+		l := &entity.List{
+			ListID:    listID,
+			ListTitle: req.ListTitle,
+			UserID:    u.UserID,
+		}
+
+		l, err = s.uc.ListsEdit(l)
+		if err != nil {
+			s.error(w, r, http.StatusUnprocessableEntity, err)
 			return
 		}
 
